@@ -33,7 +33,6 @@ TC="$PWD"
 # Download Url: https://github.com/llvm/llvm-project/releases/tag/llvmorg-17.0.2
 # PATH=${TC}/clang+llvm-17.0.2-x86_64-linux-gnu-ubuntu-22.04/bin:${TC}/aarch64/bin:${TC}/arm/bin:$PATH
 
-export LLVM=1
 export KBUILD_OUTPUT=$PWD/out
 export CC=clang
 #请按照需求修改下方指令并解除注释
@@ -59,6 +58,7 @@ make ARCH=arm64 \
         CC=clang \
 	AR=llvm-ar \
         LD=ld.lld \
+        HOSTLD=ld \
         NM=llvm-nm \
         OBJCOPY=llvm-objcopy \
         OBJDUMP=llvm-objdump \
