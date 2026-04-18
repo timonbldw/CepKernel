@@ -5,6 +5,26 @@
 KERNEL_DEFCONFIG=cepheus_defconfig
 ANYKERNEL3_DIR=$PWD/AnyKernel3/
 FINAL_KERNEL_ZIP=Asuna_cepheus_DLN.zip
+KERNEL_OUT_DIR=$PWD/kernel_out
+
+# Colors
+GREEN='\033[01;32m'
+YELLOW='\033[01;33m'
+RED='\033[01;31m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+status() {
+    echo -e "${GREEN}[*]${RESET} ${BOLD}$1${RESET}"
+}
+
+warn() {
+    echo -e "${YELLOW}[!]${RESET} $1"
+}
+
+error() {
+    echo -e "${RED}[x]${RESET} $1"
+}
 
 # paths
 TC="$PWD"
@@ -26,10 +46,14 @@ export USE_CCACHE=1
 # Speed up build process
 MAKE="./makeparallel"
 
-make O=out ARCH=arm64 cepheus_defconfig
+echo ""
+status "Configuring kernel with ${KERNEL_DEFCONFIG}..."
+make O=out ARCH=arm64 $KERNEL_DEFCONFIG
 
 START=$(date +"%s")
 
+echo ""
+status "Compiling kernel ($(nproc --all) threads)..."
 make ARCH=arm64 \
         O=out \
         CC=clang \
@@ -40,34 +64,45 @@ make ARCH=arm64 \
         OBJDUMP=llvm-objdump \
         STRIP=llvm-strip \
         -j$(nproc --all)
-               
 
-echo -e "$yellow**** Verify Image.gz-dtb ****$nocol"
-ls $PWD/out/arch/arm64/boot/Image.gz-dtb
-mkdir -p $PWD/kernel_out
+echo ""
+status "Verifying kernel image..."
+if [ ! -f "$PWD/out/arch/arm64/boot/Image.gz-dtb" ]; then
+    error "Image.gz-dtb not found! Kernel compilation failed."
+    exit 1
+fi
+ls -lh $PWD/out/arch/arm64/boot/Image.gz-dtb
+
+status "Preparing AnyKernel3 package..."
+mkdir -p $KERNEL_OUT_DIR
 cp cepheus_anykernel.sh $ANYKERNEL3_DIR/anykernel.sh
-
-echo -e "$yellow**** Verifying AnyKernel3 Directory ****$nocol"
-ls $ANYKERNEL3_DIR
-echo -e "$yellow**** Removing leftovers ****$nocol"
 #rm -rf $ANYKERNEL3_DIR/Image.gz-dtb
 #rm -rf $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP
 
-echo -e "$yellow**** Copying Image.gz-dtb ****$nocol"
+status "Copying Image.gz-dtb into AnyKernel3..."
 cp $PWD/out/arch/arm64/boot/Image.gz-dtb $ANYKERNEL3_DIR/
 
-echo -e "$yellow**** Time to zip up! ****$nocol"
+status "Creating flashable ZIP with AnyKernel3..."
 cd $ANYKERNEL3_DIR/
 zip -r9 $FINAL_KERNEL_ZIP * -x README $FINAL_KERNEL_ZIP
-cp $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP $PWD/kernel_out/$FINAL_KERNEL_ZIP
 
-echo -e "$yellow**** Done, here is your checksum ****$nocol"
+status "Copying ZIP to output directory..."
+cp $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP $KERNEL_OUT_DIR/$FINAL_KERNEL_ZIP
 cd ..
+
 #rm -rf $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP
 #rm -rf $ANYKERNEL3_DIR/Image.gz-dtb
 #rm -rf out/
 
 END=$(date +"%s")
 DIFF=$((END - START))
-echo -e '\033[01;32m' "Kernel compiled successfully in $((DIFF / 60)) minute(s) and $((DIFF % 60)) seconds" || exit
-sha1sum $KERNELDIR/$FINAL_KERNEL_ZIP
+
+echo ""
+echo -e "${GREEN}============================================${RESET}"
+echo -e "${GREEN}  Kernel build finished successfully!${RESET}"
+echo -e "${GREEN}============================================${RESET}"
+echo -e "  Duration : $((DIFF / 60))m $((DIFF % 60))s"
+echo -e "  ZIP      : ${BOLD}${KERNEL_OUT_DIR}/${FINAL_KERNEL_ZIP}${RESET}"
+echo -e "  SHA1     : $(sha1sum ${KERNEL_OUT_DIR}/${FINAL_KERNEL_ZIP} | awk '{print $1}')"
+echo -e "${GREEN}============================================${RESET}"
+echo ""

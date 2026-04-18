@@ -1,0 +1,33 @@
+services:
+  kernel-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Named volume for out/ to enable incremental builds
+      - cepkernel-build:/kernel/out
+      # Host bind mount for final build output
+      - ./kernel_out:/kernel/kernel_out
+    environment:
+      - ARCH=arm64
+      - SUBARCH=arm64
+      - LLVM=1
+      - CC=clang
+      - USE_CCACHE=1
+      - KBUILD_OUTPUT=/kernel/out
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+
+        echo '=== Verifying case-sensitive files ==='
+        ls -la include/uapi/linux/netfilter/xt_MARK.h include/uapi/linux/netfilter/xt_mark.h 2>/dev/null || true
+        ls -la include/uapi/linux/netfilter/xt_CONNMARK.h include/uapi/linux/netfilter/xt_connmark.h 2>/dev/null || true
+
+        echo '=== Starting build ==='
+        chmod +x ./build.sh
+        ./build.sh
+
+volumes:
+  cepkernel-build:

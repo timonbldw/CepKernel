@@ -130,3 +130,7 @@ kernel/configs/android-*.cfg
 #Ignoring Android.bp link file
 #
 Android.bp
+clang+llvm-17.0.2-x86_64-linux-gnu-ubuntu-22.04/
+out
+kernel_out
+*.zip
