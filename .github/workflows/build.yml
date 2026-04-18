@@ -1,60 +1,55 @@
 # This is a basic workflow to help you get started with Actions
 name: build
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on push events but only for the eleven branch
   push:
     tags:
       - "*"
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+env:
+  CLANG_VERSION: "17.0.2"
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
-          # 为了避免莫名其妙的问题，禁用深度克隆，拉取完整代码
           fetch-depth: 0
 
-      # 新增步骤：拉取子模块【Kernelsu  Anykernel】
-      - name: Update Submodules
-        run: git submodule update --init --recursive  --remote
+      - name: Update submodules
+        run: git submodule update --init --recursive --remote
 
-      # 下载指定版本的 clang 17.0.2 和 GCC 4.9
-      - name: Download clang
+      - name: Install build dependencies
         run: |
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.2/clang+llvm-17.0.2-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git aarch64
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git arm 
-          tar -xvf clang+llvm-17.0.2-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            build-essential bc bison flex libssl-dev libelf-dev \
+            libyaml-dev ccache zip python3 curl wget xz-utils
 
-      - name: Install libyaml-dev
-        run: sudo apt-get update && sudo apt-get install libyaml-dev -y
-          
-      # 下载Nethunter内核和设备包
-      #- name: Download Nethunter
-       # run: |
-        #  git clone git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-project.git
-         # git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernel.git
-          
-      - name: Build
+      - name: Download and install Clang ${{ env.CLANG_VERSION }}
         run: |
-          bash ./build.sh
+          curl -fsSL --retry 3 --retry-delay 5 \
+            "https://github.com/llvm/llvm-project/releases/download/llvmorg-${CLANG_VERSION}/clang%2Bllvm-${CLANG_VERSION}-x86_64-linux-gnu-ubuntu-22.04.tar.xz" \
+            -o /tmp/clang.tar.xz
+          sudo mkdir -p /opt/clang
+          sudo tar xf /tmp/clang.tar.xz -C /opt/clang --strip-components=1
+          rm /tmp/clang.tar.xz
+          echo "/opt/clang/bin" >> "$GITHUB_PATH"
 
-      #- name: Nethunter_Build
-       # run: |
-        #  cp mi9_nethunter_buildconfig kali-nethunter-kernel/config
-         # bash ./kali-nethunter-kernel/build.sh
+      - name: Verify clang installation
+        run: clang --version | head -1
+
+      - name: Build kernel
+        run: bash ./build.sh
+
+      - name: Build NetHunter kernel
+        run: |
+          cp mi9_nethunter_buildconfig kali-nethunter-kernel/config
+          sed -i 's|${TD}/clang+llvm-17.0.2-x86_64-linux-gnu-ubuntu-22.04|/opt/clang|g' kali-nethunter-kernel/config
+          bash ./kali-nethunter-kernel/build.sh
 
       - name: Release
         uses: "marvinpinto/action-automatic-releases@latest"
@@ -64,3 +59,4 @@ jobs:
           prerelease: false
           files: |
             kernel_out/*.zip
+            kali-nethunter-kernel/output/*.zip
