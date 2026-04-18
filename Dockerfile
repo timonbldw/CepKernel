@@ -46,3 +46,4 @@ COPY cepheus_anykernel.sh                          cepheus_anykernel.sh
 COPY scripts/dtc/mkdtboimg.py                      scripts/dtc/mkdtboimg.py
 COPY tools/perf/scripts/python/sched-migration.py  tools/perf/scripts/python/sched-migration.py
 COPY build.sh                                      build.sh
+COPY kernel/cgroup/cpuset.c                        kernel/cgroup/cpuset.c

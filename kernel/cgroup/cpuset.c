@@ -323,7 +323,7 @@ static struct dentry *cpuset_mount(struct file_system_type *fs_type,
 	struct dentry *ret = ERR_PTR(-ENODEV);
 	if (cgroup_fs) {
 		char mountopts[] =
-			"cpuset,noprefix,"
+			"cpuset,"
 			"release_agent=/sbin/cpuset_release_agent";
 		ret = cgroup_fs->mount(cgroup_fs, flags,
 					   unused_dev_name, mountopts);
